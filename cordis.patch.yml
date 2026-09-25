@@ -1,0 +1,10 @@
+# dsh-mobile bundle patch.
+#
+# One row: the host half of a dual-face package. The host half is inert, but the
+# row is what makes `@deepseek-ai/dsh-client-modules` find this package while it
+# scans the Loader tree for `dsh.client` declarations, compose the browser boot
+# graph, and serve `/plugins/dsh-mobile/client.js`. Without it the browser half
+# is never referenced and the shell stays exactly as shipped.
+- insert:
+    - id: dsh-mobile
+      name: 'dsh-mobile'

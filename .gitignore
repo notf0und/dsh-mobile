@@ -1,0 +1,11 @@
+# Dependencies, if the plugin is ever installed from a checkout rather than
+# vendored into a DSH profile.
+node_modules/
+
+# The isolated harness used to build and verify the plugin (see README,
+# "Verification"): it boots its own DSH home and its own Chromium profile,
+# so none of it belongs in the repo.
+dev/
+
+*.log
+.DS_Store
