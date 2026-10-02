@@ -1,6 +1,6 @@
-# Dependencies, if the plugin is ever installed from a checkout rather than
-# vendored into a DSH profile.
+# Dependencies, if the plugin is installed from a checkout.
 node_modules/
+.npm-cache/
 
 # The isolated harness used to build and verify the plugin (see README,
 # "Verification"): it boots its own DSH home and its own Chromium profile,
@@ -8,4 +8,5 @@ node_modules/
 dev/
 
 *.log
+*.tgz
 .DS_Store

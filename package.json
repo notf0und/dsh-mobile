@@ -1,9 +1,17 @@
 {
   "name": "dsh-mobile",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Phone-first shell for the DeepSeek Harness Web UI: the sidebar becomes an off-canvas drawer triggered from the conversation header, plus touch fixes for tool calls, the trajectory view and the save-money status widget. Desktop is untouched.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/notf0und/dsh-mobile.git"
+  },
+  "homepage": "https://github.com/notf0und/dsh-mobile#readme",
+  "bugs": {
+    "url": "https://github.com/notf0und/dsh-mobile/issues"
+  },
   "type": "module",
   "main": "lib/index.mjs",
   "exports": {
@@ -19,7 +27,8 @@
     "src",
     "scripts",
     "cordis.patch.yml",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "node scripts/build.mjs",
@@ -32,6 +41,9 @@
     "mobile",
     "responsive"
   ],
+  "engines": {
+    "node": ">=20"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"

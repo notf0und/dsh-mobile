@@ -45,6 +45,11 @@ animate without re-laying-out the frame.
   owns that placement; the plugin never injects nodes into a tree React manages;
 * the sidebar column leaves the grid (`position: fixed`) and becomes a drawer
   capped at `min(86vw, 340px)`, over a scrim;
+* the shipped sidebar root inside that drawer is widened to fill it — the shell
+  sizes the root from the layout's own column width (an inline style, 280px by
+  default), which left a strip of empty sidebar to the right of the logo, the
+  New Session control and the workspace rows, with the list's scrollbar stranded
+  inside it;
 * the frame's left grid track is pinned to `0`, so the conversation always keeps
   the full viewport width;
 * the frame's `grid-template-columns` transition is disabled and the shipped
@@ -65,18 +70,18 @@ identically.
 
 **Interaction:** a trigger toggles; the scrim, <kbd>Esc</kbd>, a left swipe on
 the drawer, the shipped in-drawer collapse button, and picking a session / a
-global panel / New Session / Settings all close it; a right swipe from the left
-edge opens it.
+global panel / New Session all close it (Settings does not — its dialog is a
+body portal that opens over the drawer and returns you to it); a right swipe from
+the left edge opens it.
 
-**Settings opens full-screen, instead of inside the drawer.** The Settings
-surface is a `position: fixed` modal that ships *inside* the sidebar's settings
-seat. Inside the drawer that failed twice: the drawer's `transform` (and its
-`will-change`) becomes the containing block for fixed positioning, so the modal
-was laid out against the drawer's 335px box rather than the viewport; and the
-drawer's click handler treated Settings as navigation, closed the drawer, and
-slid the modal off-screen with it. Both are fixed: Settings is no longer in the
-auto-close set, and while its overlay is mounted the drawer is promoted to a
-full-viewport layer with the panel full-bleed.
+**Settings opens full-screen, with the sections as a top tab strip.** DSH 0.1.7
+portals the Settings dialog to `document.body`, so the plugin addresses it
+through its stable `data-shortcut-modal="settings"` hook rather than through the
+sidebar's settings seat. On a phone the desktop dialog's 188px navigation column
+and margins waste most of the screen, so the dialog goes full-bleed and its nav
+becomes a horizontal, scrollable tab strip along the top. Because the dialog is a
+body portal it no longer lives *inside* the drawer, so nothing has to be promoted
+while it is open.
 
 **Enter is a line break, not a send.** A soft keyboard has no Shift+Enter, so
 the shipped Enter-to-send turns every intended line break into an accidental
@@ -113,30 +118,36 @@ delivered.
 The live suite asserts this both by loading a desktop viewport and by resizing
 an already-loaded phone page up to 1440px without a reload.
 
+## Compatibility
+
+Targets DSH **0.1.7-rc.2** — the release that portals the Settings dialog to
+`document.body` — and was verified against it. On 0.1.5/0.1.6 the phone shell and
+the touch fixes still apply; only the Settings dialog keeps its shipped desktop
+layout there, because in those releases it still ships inside the sidebar's
+settings seat rather than as a body portal.
+
 ## Install
 
-The plugin lives in the profile, not in the DSH installation, so it survives
-`npx @deepseek-ai/dsh@latest` upgrades.
+Requires a DSH version with bundle-plugin support (`dsh.profile.bundles` +
+`dsh.bundle.patch`) and `pnpm` on PATH (`corepack enable` or `npm i -g pnpm`).
+The plugin is installed into a profile, never into the DSH installation, so it
+survives `npx @deepseek-ai/dsh@latest` upgrades.
 
 ```sh
-# from this directory (plugins/dsh-mobile)
-node install.mjs                 # → $DSH_HOME/profiles/web
-node install.mjs --profile tui   # a different profile
-node install.mjs --dry-run       # show what would change
-node install.mjs --home /path    # a non-default DSH home
+# From GitHub (this repository)
+dsh plugin --profile web add github:notf0und/dsh-mobile
+
+# Or from a checkout on disk
+dsh plugin --profile web add file:/home/gonzalo/code/dsh-mobile
 ```
 
-The installer copies the plugin to `<profile>/plugins/dsh-mobile`, adds
-`"dsh-mobile": "file:./plugins/dsh-mobile"` to the profile's dependencies and
-`dsh-mobile` to `dsh.profile.bundles` (directly after the last shipped bundle,
-so its patch applies on top of the shell), runs `pnpm install`, and verifies the
-`node_modules` copy is current.
-
-Any of those edits can be made by hand; the equivalent profile manifest is:
+`dsh plugin add` forwards to `pnpm` in `$DSH_HOME/profiles/web`, then appends
+`dsh-mobile` to `dsh.profile.bundles` (directly after the last shipped bundle, so
+its patch layer applies on top of the shell). The equivalent manual edits are:
 
 ```json
 {
-  "dependencies": { "dsh-mobile": "file:./plugins/dsh-mobile" },
+  "dependencies": { "dsh-mobile": "github:notf0und/dsh-mobile" },
   "dsh": {
     "profile": {
       "bundles": [
@@ -150,27 +161,37 @@ Any of those edits can be made by hand; the equivalent profile manifest is:
 }
 ```
 
+followed by `pnpm --dir "$DSH_HOME/profiles/web" install`.
+
+> The profile uses `nodeLinker: hoisted`, which **copies** a `file:` dependency
+> into `node_modules` at install time, so a local edit does not reach the running
+> app until you re-run `pnpm install`. The web server reads bundle content per
+> request, so after that a browser hard-refresh is enough for the bundle itself —
+> but the browser roster is composed once per boot, so an install or uninstall
+> also needs a restart.
+
 **A restart is required** — the browser plugin roster (`window.__DSH_BOOT__`) is
 composed once per boot. Stop the running `dsh web` and reopen the GUI; under the
 `dsh-web-bridge` setup, letting it idle out and reopening `dsh.test` does it.
 
 ### Uninstall
 
-Remove the `dsh-mobile` entry from `dsh.profile.bundles`, delete
-`<profile>/plugins/dsh-mobile`, remove the dependency, run `pnpm install`, and
-restart. Nothing outside the profile was touched.
+```sh
+dsh plugin --profile web remove dsh-mobile
+```
+
+then restart. Nothing outside the profile is touched.
 
 ## How it works
 
 ```
-plugins/dsh-mobile
+dsh-mobile
 ├── package.json          dual-face declaration: dsh.bundle.patch + dsh.client.platform
 ├── cordis.patch.yml      inserts the (inert) host row that puts the package on the browser roster
 ├── lib/index.mjs         host half — no host-side behaviour
 ├── lib/client.js         browser half — BUILT from src/client.js by scripts/build.mjs
 ├── src/client.js         the factory body: CSS text, the trigger component, the drawer controller
-├── scripts/build.mjs      wraps the source in window.__ModuleLoader__.load({...})
-└── install.mjs           profile installer
+└── scripts/build.mjs      wraps the source in window.__ModuleLoader__.load({...})
 ```
 
 `@deepseek-ai/dsh-client-modules` scans the Loader tree for packages declaring
@@ -231,26 +252,27 @@ step. The build validates the factory body's syntax before writing.
 
 ## Verification
 
-`dev/` (one directory up) holds the harness used to build this plugin. It boots
-an **isolated** DSH home inside the workspace and points it at a **mock model**,
-so a real workspace, a real session and a real assistant turn can be driven
-without touching your profile or spending API budget.
+The plugin was built against an external harness (not shipped in this
+repository). It boots an **isolated** DSH home inside a workspace and points it
+at a **mock model**, so a real workspace, a real session and a real assistant
+turn can be driven without touching your profile or spending API budget.
 
 ```sh
-cd ../../dev
-./test.sh
+./test.sh          # from the harness directory
 ```
 
-118 checks across four suites, all passing:
+The last full run passed 118 checks across four suites:
 
 | Suite | Checks | Covers |
 |---|---|---|
 | `dev/verify.mjs` | 61 | Real Chromium against real `dsh web`: hero → workspace picker → session → mock turn → header trigger; every open/close affordance (trigger, scrim, Esc, swipe, shipped collapse control); save-money compaction; live resize phone⇄desktop; tablet 900px; desktop 1440px; zero console errors |
 | `dev/fixture.mjs` | 40 | The touch rules against the **shipped** CSS text and hashed class names, plus the slot registration (name/id/order) and the save-money widget rebuilt from its own inline styles: they apply at 320px and are inert at 1440px |
-| `dev/check-settings.mjs` | 14 | Phone: Settings keeps the drawer open, the drawer goes full-viewport, the panel is full-screen and on-screen, and it returns to a capped drawer when closed. Desktop: the shipped 800px dialog and the 280px sidebar are untouched |
+| `dev/check-settings.mjs` | 14 | Phone: Settings opens full-bleed with its sections as a horizontal tab strip on top (the dialog is a body portal since 0.1.7), and closing it returns to the drawer. Desktop: the shipped 800px dialog and the 280px sidebar are untouched |
 | `dev/check-enter.mjs` | 3 | Composer Enter behaviour with *trusted* key events: phone Enter inserts a line break, the send control still submits, desktop Enter still submits (and it reports that Ctrl+Enter still sends on a phone) |
 
-Screenshots from the last run are in `dev/shots/`.
+The 0.2.0 changes (settings retargeted to the 0.1.7 body-portaled dialog, and the
+drawer's sidebar root widened to fill it) were verified live against DSH
+`0.1.7-rc.2` at 390×844 and 1440×900.
 
 ## Performance profiling
 

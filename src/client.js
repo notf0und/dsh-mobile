@@ -102,6 +102,14 @@ const COMPOSER_SELECTOR = '[contenteditable="true"]'
 /** The header list slot the trigger is registered into. */
 const NAV_SLOT = 'conversation.session.header.utilities'
 
+/**
+ * Stable hook on the Settings dialog. Since DSH 0.1.7 the settings surface is a
+ * `createPortal(…, document.body)` modal, so it is no longer a descendant of the
+ * sidebar's settings seat; this attribute is the one part of its markup that is
+ * not a hashed CSS-module class.
+ */
+const SETTINGS_DIALOG = '[data-shortcut-modal="settings"]'
+
 const CSS = `
 /* ---------------------------------------------------------------- tokens -- */
 body[${ATTR_MOBILE}] {
@@ -215,6 +223,17 @@ body[${ATTR_MOBILE}] [${ATTR_SIDEBAR}] [class*="_railIn"] * { animation: none !i
 /* A resize handle for a column that is now an overlay is only a touch trap. */
 body[${ATTR_MOBILE}] [data-side="sidebar"] { display: none !important; }
 
+/* The shipped sidebar sizes its expanded root from the layout's own column width,
+   applied as an inline style (SidebarRoot's width prop, 280px by default when
+   the column is untouched). That is narrower than this drawer, so the root
+   rendered as a 280px column inside a 335px drawer: a strip of empty sidebar to
+   the right of the logo and the workspace list, with the list's scrollbar
+   stranded in the middle of it. Let the root fill the drawer. */
+body[${ATTR_MOBILE}] [${ATTR_SIDEBAR}] [data-slot="sidebar"] > * {
+  width: 100% !important;
+  max-width: 100%;
+}
+
 /* The right column is fullscreen below 768px and a track above it; either way
    it is an overlay on a phone, so it only needs the safe-area gutters. */
 body[${ATTR_MOBILE}] [${ATTR_RIGHTBAR}] [class*="_panel"][data-sidebar-right-panel="fullscreen"] {
@@ -292,42 +311,30 @@ body[${ATTR_MOBILE}] [class*="_headerUtilities"] span[title][style*="border-radi
 body[${ATTR_MOBILE}] [class*="_headerUtilities"] [style*="cursor: default"] { display: none; }
 
 /* ------------------------------------------------------- settings -------- */
-/* The Settings surface ships as a position:fixed modal inside the sidebar's
-   settings seat. Two things about the drawer break it: a transformed ancestor
-   becomes the containing block for fixed positioning, and closing the drawer
-   hides it outright — so on a phone the modal was squeezed into the drawer and
-   then slid off-screen with it. While that modal is mounted, promote the drawer
-   to a full-viewport layer so the modal gets the viewport it was designed for.
-   (will-change also creates a containing block, hence the reset; and the click
-   handler no longer treats Settings as navigation that closes the drawer.) */
-body[${ATTR_MOBILE}] [${ATTR_SIDEBAR}]:has([class*="_settingsArea"] [class*="_overlay"]) {
-  visibility: visible;
-  transform: none;
-  will-change: auto;
-  width: 100vw;
-  max-width: 100vw;
-  border-right: 0;
-  box-shadow: none;
-}
-/* …and let the panel use the whole screen rather than the desktop dialog's
-   margins, which is how it reads best on a phone. */
-body[${ATTR_MOBILE}] [${ATTR_SIDEBAR}] [class*="_settingsArea"] [class*="_overlay"] > [class*="_panel"] {
+/* Since DSH 0.1.7 the Settings surface is a body portal: the overlay and its
+   800px dialog are createPortal(…, document.body) nodes, so they are no longer
+   descendants of the sidebar's settings seat — and, with no transformed ancestor
+   above them, the drawer needs no promotion while the dialog is open. The dialog
+   is simply addressed through its stable data-shortcut-modal hook.
+
+   On a phone the desktop dialog also wastes most of its width on the fixed
+   188px navigation column and its margins, so it goes full-bleed and the nav
+   becomes a horizontal tab strip. The nav column is addressed as "the element
+   that directly wraps the nav list", because every class in there shares a
+   _nav prefix (title, list, cell, icon, label). */
+body[${ATTR_MOBILE}] ${SETTINGS_DIALOG} {
+  box-sizing: border-box;
   width: 100vw;
   max-width: 100vw;
   height: 100vh;
   height: 100dvh;
   border-radius: 0;
 }
-/* The dialog is a flex row whose nav is a fixed 188px column — on a 390px phone
-   that is half the screen spent on navigation. Stack it and turn the nav into a
-   horizontal, scrollable tab strip along the top instead. The nav column is
-   addressed as "the element that directly wraps the nav list", because every
-   class in there shares a _nav prefix (title, list, cell, icon, label). */
-body[${ATTR_MOBILE}] [${ATTR_SIDEBAR}] [class*="_settingsArea"] [class*="_panel"]:has([class*="_navList"]) {
+body[${ATTR_MOBILE}] ${SETTINGS_DIALOG}:has([class*="_navList"]) {
   flex-direction: column;
   position: relative;
 }
-body[${ATTR_MOBILE}] [${ATTR_SIDEBAR}] [class*="_settingsArea"] [class*="_panel"]:has([class*="_navList"]) > :has(> [class*="_navList"]) {
+body[${ATTR_MOBILE}] ${SETTINGS_DIALOG}:has([class*="_navList"]) > :has(> [class*="_navList"]) {
   flex-direction: row;
   align-items: center;
   box-sizing: border-box;
@@ -337,20 +344,20 @@ body[${ATTR_MOBILE}] [${ATTR_SIDEBAR}] [class*="_settingsArea"] [class*="_panel"
   border-bottom: .5px solid var(--dsw-alias-border-l2);
 }
 /* the dialog title is redundant once the sections are the tabs */
-body[${ATTR_MOBILE}] [${ATTR_SIDEBAR}] [class*="_settingsArea"] [class*="_panel"]:has([class*="_navList"]) [class*="_navTitle"] {
+body[${ATTR_MOBILE}] ${SETTINGS_DIALOG}:has([class*="_navList"]) [class*="_navTitle"] {
   display: none;
 }
-body[${ATTR_MOBILE}] [${ATTR_SIDEBAR}] [class*="_settingsArea"] [class*="_panel"]:has([class*="_navList"]) [class*="_navList"] {
+body[${ATTR_MOBILE}] ${SETTINGS_DIALOG}:has([class*="_navList"]) [class*="_navList"] {
   flex-direction: row;
   gap: 6px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
 }
-body[${ATTR_MOBILE}] [${ATTR_SIDEBAR}] [class*="_settingsArea"] [class*="_panel"]:has([class*="_navList"]) [class*="_navList"]::-webkit-scrollbar {
+body[${ATTR_MOBILE}] ${SETTINGS_DIALOG}:has([class*="_navList"]) [class*="_navList"]::-webkit-scrollbar {
   display: none;
 }
-body[${ATTR_MOBILE}] [${ATTR_SIDEBAR}] [class*="_settingsArea"] [class*="_panel"]:has([class*="_navList"]) [class*="_navCell"] {
+body[${ATTR_MOBILE}] ${SETTINGS_DIALOG}:has([class*="_navList"]) [class*="_navCell"] {
   flex: none;
   width: auto;
   height: 34px;
@@ -359,15 +366,15 @@ body[${ATTR_MOBILE}] [${ATTR_SIDEBAR}] [class*="_settingsArea"] [class*="_panel"
   white-space: nowrap;
 }
 /* content takes the rest, and scrolls instead of overflowing */
-body[${ATTR_MOBILE}] [${ATTR_SIDEBAR}] [class*="_settingsArea"] [class*="_panel"]:has([class*="_navList"]) [class*="_content"] {
+body[${ATTR_MOBILE}] ${SETTINGS_DIALOG}:has([class*="_navList"]) [class*="_content"] {
   min-height: 0;
 }
-body[${ATTR_MOBILE}] [${ATTR_SIDEBAR}] [class*="_settingsArea"] [class*="_panel"]:has([class*="_navList"]) [class*="_header"] {
+body[${ATTR_MOBILE}] ${SETTINGS_DIALOG}:has([class*="_navList"]) [class*="_header"] {
   height: auto;
   padding: 10px 14px 8px 16px;
 }
 /* keep Close on the tab row rather than below it */
-body[${ATTR_MOBILE}] [${ATTR_SIDEBAR}] [class*="_settingsArea"] [class*="_panel"]:has([class*="_navList"]) [class*="_close"] {
+body[${ATTR_MOBILE}] ${SETTINGS_DIALOG}:has([class*="_navList"]) [class*="_close"] {
   position: absolute;
   top: 9px;
   right: 10px;
